@@ -294,7 +294,7 @@ Methods need to end at double def `@@`, following by optional return stack
     @sumPlusOne:mystack
     <1
     +mystack
-    @@mystac
+    @@mystack
 
     |Integer:num
     <1
@@ -334,3 +334,32 @@ Return stack from call is defined after `>`.
 
 Stacks are passed to methods by VALUE and not by reference,
 so every method call will make COPY of the stack.
+Return value will be copy of local stack.
+
+## Casting
+
+Since all types are strong, casting is needed for all type conversions.
+Programmer should know what is doing, since cast may fail.
+Since the best casting is from Britain, our casting symbol is `£`.
+Destination stack need to follow the symbol.
+Thus we have source and dest types. May cause error to error stack.
+
+    |Unicode:res
+    |Integer:num
+    <42
+    £res
+    .res
+
+## Stack size
+
+Sometime you just need to know the size of the stack.
+Syntax is `~` followed by target stack or source and targe stacks separated by colon `:`:
+
+    |Integer:stacksize
+    |Integer:stacksize2
+    |Integer:num
+    <5<10<9<2<6<1
+    ~stacksize
+    ~stacksize:stacksize2
+
+On this example stacksize would be `6`, and stacksize2 `1`.
