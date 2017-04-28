@@ -1,0 +1,277 @@
+# Bizarre
+
+Bizarre is a programming language.
+
+To be more presice, it's a turing tarpit.
+
+## Design
+
+Bizarre is designed to be compact and easy to implement.
+//It suppose to map very well to modern computers.
+
+//Base of all computations is SIMD model.
+//All registers and data are arrays.
+
+//One applies single instruction for multiple data at time.
+
+Bizarre is heavily stack based.
+
+## Push to stack
+
+First, simple "Hello, World!"
+
+    <H<e<l<l<o< <W<o<r<l<d<!.
+
+Or simpler version
+
+    <<Hello, World!
+    .
+
+To open a bit the syntax, command `<` tells to push data to stack.
+Data in this case is Unicode character.
+
+In case of operator `<<` it pushes list of unicode characters until EOL.
+Command `.` means print out stack.
+
+## Stacks
+
+Bizarre has multiple stacks.
+Default stack is "string based" and everything pushed there
+will be presented as a unicode char as seen on previous example.
+
+In the end we have different kind of stacks:
+
+ - Unicode
+ - Integer
+ - Unsigned integer
+ - Double (floating point)
+ - Byte
+ - Boolean
+
+Bizarre has one DEFAULT unicode stack, other stacks must be selected.
+By "selected", we mean it must be created.
+
+Every stack has selector, while default being unicode.
+Selector command is `|` followed by stack identifier.
+To create a totally new stack do following:
+
+    |Integer.num1
+
+Syntax is command `|` followed by type, dot `.` and name of stack.
+After this command, proper type stack is created and selected active.
+
+To switch to differenc stack, use selector command again:
+
+    |num1
+
+Difference is, that type is left out stack name is followed directly after selector `|`.
+It's an error to instruct this for uninitialized stack.
+This also means stack types can't be stack names.
+
+After that all push and pop affects to the selected stack.
+Bizarre is strongly typed, so pushing wrong kind of value to wrong stack is error.
+
+Default unicode stack can be selected just with empty selector:
+
+    |
+
+
+## Pop from stack
+
+Similar way pop is basic stack operation.
+Pop is oppose of push command: `>`
+
+However since Bizarre does not have any "active memory", registers or temporary variables,
+pop target may be questionable.
+
+Idea of pop is to pop to ANOTHER stack.
+Thus it's MANDATORY to give stack name after pop.
+Let's take an example:
+
+    |Integer.num2
+    |Integer.num1
+    <10<5<2<1
+    >num2
+    >num2
+    |num2
+    .
+
+This creates two Integer stacks, and `num1` is default active stack after init.
+We push four numbers to that stack.
+After it, we pop two numbers and push them to `num2` stack.
+We select `num2` as active stack, and print it's contents.
+
+## Push to specific stack
+
+Simlar way push to specific stack is done by:
+
+    |Integer.num2
+    |Integer.num1
+    <10
+    <num2.5
+
+Thus num1 would contain `10`, and num2 `5`.
+
+## Stack operators
+
+Just pushing and popping is not enough so Bizarre has stack operators.
+Valid operators are:
+ - `+` to append or add
+ - `-` to negate or minus
+ - `*` to multiply
+ - `/` to divide
+ - `/` to modulus
+ - `^` to power
+
+All operations might not be possible for all stack types.
+Operator without any options applies to current stack,
+otherwise specified stack follows operator.
+
+Let's modify our old example:
+
+    |Integer.num2
+    |Integer.num1
+    <10<5<6<7
+    >num2
+    >num2
+    *num2
+    .num2
+
+This would output `42` since `6` and `7` are pushed to num2 stack,
+then multiplied, multiply output replaces stack data, and then it's outputted.
+
+## Duplicate
+
+Sometimes one just needs copy of stack data.
+Thus we have duplicate operand `_`.
+See following example:
+
+    |Integer.num
+    <7
+    _
+    +
+    .
+
+Output should be 14, since 7 is duplicated in stack and then summed up and outputted.
+
+## Streams
+
+We have already used output command `.`
+It knows data type and outputs it properly to stdout.
+
+To be precise we have also input command `,` which read data from stdin
+and puts it to current stack.
+
+As other stack commands, these may define stack as well.
+See simple echo:
+
+    ,.
+
+This reads unicode and outputs unicode.
+More complex example, reads number (or fail) and outputs (echo) read number:
+
+    |Integer.num
+    ,num
+    .num
+
+## Errors
+
+Bizarre defines error in many operations.
+There could be different strategies to define how to recover error.
+However Bizarre leaves it's up to programmer.
+
+Error code is outputted to stack named `errorcode` and it's type is Integer.
+Error message is outputted to stack named `error` and it's type is Unicode.
+These stacks are not emptyed by default, so it may cumulate multiple errors.
+
+## Emptying stack
+
+Sometimes it might be useful to empty a stack.
+Bizarre introduces the simplest way to do it: reintroduction.
+
+Example:
+
+    |Integer.num
+    |Integer.num2
+    <1<2<5<8<9<10
+    >num2
+    .num2
+    |Integer.num
+    >num
+
+This should output only `10`. After this both num and num2 are empty.
+
+## Checking for emptiness
+
+Stack without data is a sad stack.
+So we have way to check if stack has data.
+It's boolean operator `@`. It's result is stored to `result` stack.
+:
+
+    |Integer.num
+    <33
+    @num
+    .result
+    >
+    @num
+    .result
+
+This should output first `true` followed by `33` and `false`.
+
+## Labels
+
+One can label anything. All valid characters before colon is considered label:
+
+    label:
+    <H
+
+Goto is simply dollar `$` and label name:
+
+    repeat:
+    <<Hello
+    $repeat
+
+Dollar operator checks `result` stack.
+If stack is empty, goto is always done, otherwise topmost result defines
+if goto is performed or not.
+
+## Conditionals
+
+What's an programming language without conditionals?
+
+Basic question `?` evaluates stack with operand.
+Known operands:
+ - `<` second entry is smaller than top entry
+ - `<=` second entry is smaller than top entry or equals
+ - `>` second entry is bigger than top entry
+ - `>=` second entry is bigger than top entry or equals
+ - `=` second entry equals to top entry
+ - `!` second entry does not equals to top entry
+ - `0` top entry is zero
+
+Result is pushed to `result` stack.
+
+Checking result stack is straightforward with
+dollar `$`operation. If result is true, go to label.
+
+Let's take example:
+
+    |Integer.num2
+    |Integer.num
+    <5
+    <1
+    ?<
+    $plus
+    $done
+
+    plus:
+    _num
+    >num2
+    <num2.1
+    +
+    ?0
+    $done
+    $loop
+
+    done:
+    .num2
