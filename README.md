@@ -55,9 +55,9 @@ Every stack has selector, while default being unicode.
 Selector command is `|` followed by stack identifier.
 To create a totally new stack do following:
 
-    |Integer.num1
+    |Integer:num1
 
-Syntax is command `|` followed by type, dot `.` and name of stack.
+Syntax is command `|` followed by type, colon `:` and name of stack.
 After this command, proper type stack is created and selected active.
 
 To switch to differenc stack, use selector command again:
@@ -88,8 +88,8 @@ Idea of pop is to pop to ANOTHER stack.
 Thus it's MANDATORY to give stack name after pop.
 Let's take an example:
 
-    |Integer.num2
-    |Integer.num1
+    |Integer:num2
+    |Integer:num1
     <10<5<2<1
     >num2
     >num2
@@ -105,10 +105,10 @@ We select `num2` as active stack, and print it's contents.
 
 Simlar way push to specific stack is done by:
 
-    |Integer.num2
-    |Integer.num1
+    |Integer:num2
+    |Integer:num1
     <10
-    <num2.5
+    <num2:5
 
 Thus num1 would contain `10`, and num2 `5`.
 
@@ -129,8 +129,8 @@ otherwise specified stack follows operator.
 
 Let's modify our old example:
 
-    |Integer.num2
-    |Integer.num1
+    |Integer:num2
+    |Integer:num1
     <10<5<6<7
     >num2
     >num2
@@ -146,7 +146,7 @@ Sometimes one just needs copy of stack data.
 Thus we have duplicate operand `_`.
 See following example:
 
-    |Integer.num
+    |Integer:num
     <7
     _
     +
@@ -170,7 +170,7 @@ See simple echo:
 This reads unicode and outputs unicode.
 More complex example, reads number (or fail) and outputs (echo) read number:
 
-    |Integer.num
+    |Integer:num
     ,num
     .num
 
@@ -191,12 +191,12 @@ Bizarre introduces the simplest way to do it: reintroduction.
 
 Example:
 
-    |Integer.num
-    |Integer.num2
+    |Integer:num
+    |Integer:num2
     <1<2<5<8<9<10
     >num2
     .num2
-    |Integer.num
+    |Integer:num
     >num
 
 This should output only `10`. After this both num and num2 are empty.
@@ -205,29 +205,28 @@ This should output only `10`. After this both num and num2 are empty.
 
 Stack without data is a sad stack.
 So we have way to check if stack has data.
-It's boolean operator `@`. It's result is stored to `result` stack.
-:
+It's boolean operator `?`. It's result is stored to `result` stack.
 
-    |Integer.num
+    |Integer:num
     <33
-    @num
+    ?
     .result
     >
-    @num
+    ?
     .result
 
 This should output first `true` followed by `33` and `false`.
 
 ## Labels
 
-One can label anything. All valid characters before colon is considered label:
+One can label anything. Label command is colon `:`:
 
-    label:
+    :label
     <H
 
 Goto is simply dollar `$` and label name:
 
-    repeat:
+    :repeat
     <<Hello
     $repeat
 
@@ -235,12 +234,17 @@ Dollar operator checks `result` stack.
 If stack is empty, goto is always done, otherwise topmost result defines
 if goto is performed or not.
 
+## Comments
+
+Hash is recogniced as comment. Comment continues until end of line.
+
 ## Conditionals
 
 What's an programming language without conditionals?
 
-Basic question `?` evaluates stack with operand.
+Boolean operato is also basic question `?`, which evaluates stack with operand.
 Known operands:
+ - No operator -> check queue for emptiness
  - `<` second entry is smaller than top entry
  - `<=` second entry is smaller than top entry or equals
  - `>` second entry is bigger than top entry
@@ -256,22 +260,77 @@ dollar `$`operation. If result is true, go to label.
 
 Let's take example:
 
-    |Integer.num2
-    |Integer.num
+    |Integer:num2
+    |Integer:num
+    :loop
     <5
     <1
     ?<
-    $plus
+    # Id 5 < 1 goto done
     $done
 
-    plus:
-    _num
+    # Move topmost to another stack
     >num2
-    <num2.1
+    # Add 1 to another stack
+    <num2:1
+    # Sum them up
     +
-    ?0
-    $done
+    # Push back to origin stack
+    <
     $loop
 
-    done:
+    :done
     .num2
+
+## Methods
+
+Bizarre does not like spaghetti code.
+Using only gotos make procedural and
+methods quite hard to implement.
+
+We have real method command `@` is here to save.
+Methods need to end at double def `@@`, following by optional return stack
+
+    @sumPlusOne:mystack
+    <1
+    +mystack
+    @@mystac
+
+    |Integer:num
+    <1
+    <2
+    <3
+    <4
+    |Integer:num2
+    <10
+    <5
+    |Integer:res
+    $sumPlusOne:num2>res
+    <res
+    $sumPlusOne:num>res
+    <res
+
+Syntax is: `@` followed by method name, then optional parameters separated by colons.
+Return is just `@@'.
+
+Call syntax is same as goto `$`, and parameter stacks are defined with colons.
+Return stack from call is defined after `>`.
+
+    @sumStacks:stack1:stack2
+    |stack1
+    <<stack2
+    +stack1
+    @@stack1
+
+    |Integer:num
+    <11
+    <5
+    |Integer:num2
+    <4
+    <2
+    |Integer:res
+    $sumStacks:num2:num>res
+    <res
+
+Stacks are passed to methods by VALUE and not by reference,
+so every method call will make COPY of the stack.
