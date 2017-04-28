@@ -7,12 +7,6 @@ To be more presice, it's a turing tarpit.
 ## Design
 
 Bizarre is designed to be compact and easy to implement.
-//It suppose to map very well to modern computers.
-
-//Base of all computations is SIMD model.
-//All registers and data are arrays.
-
-//One applies single instruction for multiple data at time.
 
 Bizarre is heavily stack based.
 
