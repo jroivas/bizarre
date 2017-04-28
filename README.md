@@ -95,6 +95,11 @@ We push four numbers to that stack.
 After it, we pop two numbers and push them to `num2` stack.
 We select `num2` as active stack, and print it's contents.
 
+Similar way, pop until newline:
+
+    |Integer:nums
+    >>nums
+
 ## Push to specific stack
 
 Simlar way push to specific stack is done by:
@@ -116,6 +121,11 @@ Valid operators are:
  - `/` to divide
  - `/` to modulus
  - `^` to power
+ - `0&` to binary and
+ - `0|` to binary or
+ - `0^` to binary xor
+ - `0~` to binary not
+ - `0!` to binary negate
 
 All operations might not be possible for all stack types.
 Operator without any options applies to current stack,
