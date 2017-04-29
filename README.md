@@ -357,6 +357,18 @@ Thus we have source and dest types. May cause error to error stack.
     £res
     .res
 
+One is allowed to define source stack as well, but then those two stacks
+needs to be separated with colon `:`, while first is source
+and second is destination stack. Thus this example outputs `42` even active stack is `num2`.
+
+    |Unicode:res
+    |Integer:num
+    |Integer:num2
+    <num1:42
+    <12
+    £num1:res
+    .res
+
 ## Stack size
 
 Sometime you just need to know the size of the stack.
