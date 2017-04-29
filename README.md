@@ -10,6 +10,9 @@ Bizarre is designed to be compact and easy to implement.
 
 Bizarre is heavily stack based.
 
+Errors pushed on specific error stack.
+Any invalid character or invalid combination is error.
+
 ## Push to stack
 
 First, simple "Hello, World!"
@@ -120,13 +123,13 @@ Valid operators are:
  - `-` to negate or minus
  - `*` to multiply
  - `/` to divide
- - `/` to modulus
+ - `%` to modulus
  - `^` to power
  - `0&` to binary and
  - `0|` to binary or
  - `0^` to binary xor
- - `0~` to binary not
- - `0!` to binary negate
+ - `0~` to binary negate
+ - `0!` to binary not
 
 All operations might not be possible for all stack types.
 Operator without any options applies to current stack,
@@ -247,7 +250,7 @@ Hash is recogniced as comment. Comment continues until end of line.
 
 What's an programming language without conditionals?
 
-Boolean operato is also basic question `?`, which evaluates stack with operand.
+Boolean operator is basic question `?`, which evaluates stack with operand.
 Known operands:
 
  - No operator -> check queue for emptiness
@@ -372,7 +375,7 @@ and second is destination stack. Thus this example outputs `42` even active stac
 ## Stack size
 
 Sometime you just need to know the size of the stack.
-Syntax is `~` followed by target stack or source and targe stacks separated by colon `:`:
+Syntax is `~` followed by target stack or source and target stacks separated by colon `:`.
 
     |Integer:stacksize
     |Integer:stacksize2
@@ -382,3 +385,73 @@ Syntax is `~` followed by target stack or source and targe stacks separated by c
     ~stacksize:stacksize2
 
 On this example stacksize would be `6`, and stacksize2 `1`.
+
+
+## Reference
+
+System stacks:
+
+ - Default unnamed stack, unicode type
+ - `error` stack for error strings (Unicode)
+ - `errorcode` stack for error codes (Integer)
+ - `result` stack for Boolean results
+
+Parameters defined as:
+
+ - `s` (output) stack name
+ - `i` input stack name
+ - `t` stack type
+ - `l` label
+ - `:` literal colon
+ - `d` data
+ - `D` array of data until EOL
+
+| Operator | Parameters | Description |
+|----------|------------|-------------|
+| #        | D          | Comment |
+| <        | d          | Push |
+| <        | s:d        | Push |
+| <<       | D          | Push array of data |
+| <<       | s:D        | Push array of data |
+| >        | i          | Pop |
+| >>       | i          | Pop array of data |
+| £        | s          | Cast from selected stack to defined stack |
+| £        | i:s        | Cast from input stack to defined stack |
+| ~        | s          | Size of default stack to defined stack |
+| ~        | i:s        | Size of defined stack to output stack |
+| |        |            | Select default stack |
+| |        | t:s        | Define new stack, or empty it |
+| |        | s          | Select stack |
+| +        | s          | Sum or concatenate all entries in stack |
+| -        | s          | Subtract all entries in stack from first, or negate if only one entry |
+| *        | s          | Multiply all entries in stack |
+| /        | s          | Divide first entry in stack by rest, if only one item it's error |
+| %        | s          | Divide first entry in stack by rest, take modulus. If only one item it's error |
+| ^        | s          | First item to power of all, ie. first^second^third^...^N |
+| 0&       | s          | First item with binary and for rest |
+| 0|       | s          | First item with binary or for rest |
+| 0^       | s          | First item with binary xor for rest |
+| 0~       | s          | Binary negate for all |
+| 0!       | s          | Binary not for all |
+| _        | s          | Duplicate topmost item in stack |
+| .        |            | Write whole stack to stdout |
+| .        | s          | Write whole stack to stdout |
+| ,        |            | Input from stdin to stack |
+| ,        | s          | Input from stdin to stack |
+| ?        | s          | Checks if stack is empty |
+| ?<       | s          | top-1 < top |
+| ?<=      | s          | top-1 <= top |
+| ?>       | s          | top-1 > top |
+| ?>=      | s          | top-1 >= top |
+| ?=       | s          | top-1 == top |
+| ?!       | s          | top-1 != top |
+| ?0       | s          | top == 0 |
+| ?-       | s          | top < 0  |
+| :        | l          | Define label |
+| $        | l          | Goto label, call method |
+| $        | l:s        | Goto label, call method with stack param |
+| $        | l:s>i      | Goto label, call method with stack param, and return stack
+| @        | l          | Method def |
+| @        | l:s        | Method def |
+| @@       |            | Return from method |
+| @@       | s          | Return from method, return stack |

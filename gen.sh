@@ -1,2 +1,2 @@
 #!/bin/bash
-markdown_py README.md  > bizarre.html
+markdown_py -x tables README.md  > bizarre.html
