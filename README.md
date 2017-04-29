@@ -58,7 +58,7 @@ To switch to differenc stack, use selector command again:
 
     |num1
 
-Difference is, that type is left out stack name is followed directly after selector `|`.
+Difference is, that type is left out, and stack name is followed directly after selector `|`.
 It's an error to instruct this for uninitialized stack.
 This also means stack types can't be stack names.
 
@@ -115,6 +115,7 @@ Thus num1 would contain `10`, and num2 `5`.
 
 Just pushing and popping is not enough so Bizarre has stack operators.
 Valid operators are:
+
  - `+` to append or add
  - `-` to negate or minus
  - `*` to multiply
@@ -195,8 +196,8 @@ Bizarre introduces the simplest way to do it: reintroduction.
 
 Example:
 
-    |Integer:num
     |Integer:num2
+    |Integer:num
     <1<2<5<8<9<10
     >num2
     .num2
@@ -248,6 +249,7 @@ What's an programming language without conditionals?
 
 Boolean operato is also basic question `?`, which evaluates stack with operand.
 Known operands:
+
  - No operator -> check queue for emptiness
  - `<` second entry is smaller than top entry
  - `<=` second entry is smaller than top entry or equals
@@ -256,6 +258,7 @@ Known operands:
  - `=` second entry equals to top entry
  - `!` second entry does not equals to top entry
  - `0` top entry is zero
+ - `-` top entry is negative
 
 Result is pushed to `result` stack.
 
@@ -315,7 +318,7 @@ Methods need to end at double def `@@`, following by optional return stack
     <res
 
 Syntax is: `@` followed by method name, then optional parameters separated by colons.
-Return is just `@@'.
+Return is just `@@`.
 
 Call syntax is same as goto `$`, and parameter stacks are defined with colons.
 Return stack from call is defined after `>`.
