@@ -1,0 +1,7 @@
+code:res
+|Integer:num
+|Integer:num2
+<num1:42
+<12
+£num1:res
+.res
