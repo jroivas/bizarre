@@ -85,6 +85,9 @@ class OutCmd(Cmd):
     def __init__(self, stack=None):
         self.stack = stack
 
+    def __repr__(self):
+        return 'Out(%s)' % (self.stack)
+
     def interpret(self, env):
         if not self.stack:
             self.stack = env.default
@@ -125,6 +128,9 @@ class Oper(Cmd):
     def __init__(self, oper, stack=None):
         self.oper = oper
         self.stack = stack
+
+    def __repr__(self):
+        return 'Oper(%s, %s)' % (self.oper, self.stack)
 
     def interpret(self, env):
         res = None
