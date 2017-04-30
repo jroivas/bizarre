@@ -61,7 +61,7 @@ To create a totally new stack do following:
 Syntax is command `|` followed by type, colon `:` and name of stack.
 After this command, proper type stack is created and selected active.
 
-To switch to differenc stack, use selector command again:
+To switch to different stack, use selector command again:
 
     |num1
 

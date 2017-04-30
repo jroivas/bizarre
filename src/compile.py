@@ -3,7 +3,7 @@
 import argparse
 import sys
 
-keywords = '<>#Â£~|+-*/&%^_.,0?:$@'
+keywords = '<>#Â£~|+-*/&%^_.,?:$@'
 
 # Cmds
 class Env(object):
@@ -73,7 +73,7 @@ class PopCmd(Cmd):
     def interpret(self, env):
         if not self.inputstack:
             self.inputstack = env.default
-        env.stacks[self.outpustack].append(env.stacks[self.inputstack].pop())
+        env.stacks[self.outputstack].append(env.stacks[self.inputstack].pop())
 
 class OutCmd(Cmd):
     def __init__(self, stack=None):
@@ -87,10 +87,12 @@ class OutCmd(Cmd):
         separator = ''
         if t == 'Integer' or t == 'Unsigned' or t == 'Double' or t == 'Boolean':
             separator = ' '
+            data = separator.join(['%s' % x for x in env.stacks[self.stack]])
         elif t == 'Byte':
             # FIXME
             pass
-        data = separator.join(env.stacks[self.stack])
+        else:
+            data = separator.join(env.stacks[self.stack])
         env.stacks[self.stack] = []
         sys.stdout.write(data)
         #print (data)
@@ -104,17 +106,37 @@ class StackCmd(Cmd):
     def interpret(self, env):
         if self.create:
             env.addStack(self.stack, self.stackType)
+
+        if not self.stack:
+            env.default = 'default'
         else:
-            if not self.stack:
-                self.stack = env.default
-            env.stacks[self.stack]
+            env.default = self.stack
 
 class Oper(Cmd):
     def __init__(self, oper, stack=None):
         self.oper = oper
         self.stack = stack
 
+    def interpret(self, env):
+        res = None
+        if not self.stack:
+            self.stack = env.default
+        s = env.stacks[self.stack]
+        res = s[0]
+        s = s[1:]
+        for i in s:
+            if self.oper == '+':
+                res += i
+            elif self.oper == '-':
+                res -= i
+            elif self.oper == '*':
+                res *= i
+            elif self.oper == '/':
+                res *= i
+            else:
+                raise ValueError('Unknown operator: %s' % self.oper)
 
+        env.stacks[self.stack] = [res]
 
 # Parser
 def readFile(fname):
