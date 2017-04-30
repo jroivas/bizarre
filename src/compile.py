@@ -1,0 +1,92 @@
+#!/usr/bin/python3
+
+import sys
+keywords = '<>#£~|+-*/&%^_.,?:$@'
+
+class Cmd(object):
+    pass
+
+class PushCmd(Cmd):
+    def __init__(self, data=None, stack=None):
+        self.data = data
+        self.stack = stack
+
+class OutCmd(Cmd):
+    def __init__(self, stack=None):
+        self.stack = stack
+
+def readFile(fname):
+    with open(fname, 'r') as fd:
+        lines = [x.strip() for x in fd.readlines()]
+        return lines
+
+def getUntilCommand(params, idx):
+    data = ''
+    ll = len(params)
+    while idx < ll and params[idx] not in keywords:
+        data += params[idx]
+        idx += 1
+    rest = params[idx:]
+    return (data, rest, idx)
+
+def parsePush(params):
+    print('PP ' + params)
+    if not params:
+        raise ValueError('Push needs to have parameters')
+
+    opos = params.find(':')
+
+    if params[0] == '<':
+        stack = None
+        datapos = 1
+        if opos > 0:
+            stack = params[1:opos]
+            datapos = opos + 1
+        return [PushCmd(data=params[datapos:], stack=stack)]
+    else:
+        idx = 0
+        stack = None
+        if opos > 0:
+            stack = params[1:opos]
+            idx = opos + 1
+
+        (data, rest, idx) = getUntilCommand(params, idx)
+        v = [PushCmd(data=data, stack=stack)]
+        if rest:
+            v += parseCmds(rest)
+        return v
+
+def parseOut(params):
+    (data, rest, idx) = getUntilCommand(params, 0)
+    res = [OutCmd(data)]
+    if rest:
+        res += parseCmds(rest)
+    return res
+
+def parseCmds(line):
+    cmds = []
+    if not line:
+        return cmds
+
+    cmd = line[0]
+    if cmd == '<':
+        cmds += parsePush(line[1:])
+    elif cmd == '.':
+        cmds += parseOut(line[1:])
+
+    return cmds
+
+def parseLines(lines):
+    cmds = []
+    for l in lines:
+        cmds += parseCmds(l)
+
+    return cmds
+
+if __name__ == '__main__':
+    if len(sys.argv) <= 1:
+        print('Usage: %s source' % sys.argv[0])
+        sys.exit(1)
+
+    lines = readFile(sys.argv[1])
+    print(parseLines(lines))

@@ -419,9 +419,9 @@ Parameters defined as:
 | £        | i:s        | Cast from input stack to defined stack |
 | ~        | s          | Size of default stack to defined stack |
 | ~        | i:s        | Size of defined stack to output stack |
-| |        |            | Select default stack |
-| |        | t:s        | Define new stack, or empty it |
-| |        | s          | Select stack |
+| &#124;   |            | Select default stack |
+| &#124;   | t:s        | Define new stack, or empty it |
+| &#124;   | s          | Select stack |
 | +        | s          | Sum or concatenate all entries in stack |
 | -        | s          | Subtract all entries in stack from first, or negate if only one entry |
 | *        | s          | Multiply all entries in stack |
