@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 import sys
-keywords = '<>#£~|+-*/&%^_.,?:$@'
+keywords = '<>#Â£~|+-*/&%^_.,?:$@'
 
 # Cmds
 class Cmd(object):
@@ -12,6 +12,12 @@ class PushCmd(Cmd):
         self.data = data
         self.stack = stack
 
+class PopCmd(Cmd):
+    def __init__(self, inputstack=None, outputstack=None, wholestack=False):
+        self.inputstack = inputstack
+        self.outputstack = outputstack
+        self.wholestack = wholestack
+
 class OutCmd(Cmd):
     def __init__(self, stack=None):
         self.stack = stack
@@ -21,6 +27,12 @@ class StackCmd(Cmd):
         self.stack = stack
         self.stackType = stackType
         self.create = create
+
+class Oper(Cmd):
+    def __init__(self, oper, stack=None):
+        self.oper = oper
+        self.stack = stack
+
 
 # Parser
 def readFile(fname):
@@ -63,6 +75,25 @@ def parsePush(params):
             v += parseCmds(rest)
         return v
 
+def parsePop(params):
+    inputstack = None
+    outputstack = None
+    wholestack = False
+
+    opos = params.find(':')
+    if opos > 0:
+        inputstack = params[1:opos]
+        datapos = opos + 1
+
+    if params[0] == '>':
+        wholestack = True
+
+    (outputstack, rest, idx) = getUntilCommand(params, 0)
+    v = [PopCmd(inputstack=inputstack, outputstack=outputstack, wholestack=wholestack)]
+    if rest:
+        v += parseCmds(rest)
+    return v
+
 def parseOut(params):
     (data, rest, idx) = getUntilCommand(params, 0)
     res = [OutCmd(data)]
@@ -83,6 +114,13 @@ def parseStack(params):
     res += parseCmds(rest)
     return res
 
+def parseSimpleOper(oper, params):
+    (data, rest, idx) = getUntilCommand(params, 0)
+    res = [Oper(oper, data)]
+    if rest:
+        res += parseCmds(rest)
+    return res
+
 def parseCmds(line):
     cmds = []
     if not line:
@@ -91,10 +129,14 @@ def parseCmds(line):
     cmd = line[0]
     if cmd == '<':
         cmds += parsePush(line[1:])
+    elif cmd == '>':
+        cmds += parsePop(line[1:])
     elif cmd == '.':
         cmds += parseOut(line[1:])
     elif cmd == '|':
         cmds += parseStack(line[1:])
+    elif cmd in '+-*/%^':
+        cmds += parseSimpleOper(cmd, line[1:])
     else:
         raise ValueError('Invalid command: %s' % line)
 

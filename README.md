@@ -413,8 +413,10 @@ Parameters defined as:
 | <        | s:d        | Push |
 | <<       | D          | Push array of data |
 | <<       | s:D        | Push array of data |
-| >        | i          | Pop |
-| >>       | i          | Pop array of data |
+| >        | s          | Pop |
+| >        | i:s        | Pop |
+| >>       | s          | Pop array of data |
+| >>       | i:s        | Pop array of data |
 | £        | s          | Cast from selected stack to defined stack |
 | £        | i:s        | Cast from input stack to defined stack |
 | ~        | s          | Size of default stack to defined stack |
