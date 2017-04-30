@@ -1,0 +1,6 @@
+|Integer:stacksize
+|Integer:stacksize2
+|Integer:num
+<5<10<9<2<6<1
+~stacksize
+~stacksize:stacksize2

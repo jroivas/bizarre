@@ -1,0 +1,21 @@
+|Integer:num2
+|Integer:num
+:loop
+<5
+<1
+?<
+# Id 5 < 1 goto done
+$done
+
+# Move topmost to another stack
+>num2
+# Add 1 to another stack
+<num2:1
+# Sum them up
++
+# Push back to origin stack
+<
+$loop
+
+:done
+.num2
