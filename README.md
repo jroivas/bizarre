@@ -13,6 +13,10 @@ Bizarre is heavily stack based.
 Errors pushed on specific error stack.
 Any invalid character or invalid combination is error.
 
+## Stacknames
+
+Stackname is any string with any alphanum. Stackname can't contain `0`.
+
 ## Push to stack
 
 First, simple "Hello, World!"

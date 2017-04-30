@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 import sys
-keywords = '<>#Â£~|+-*/&%^_.,?:$@'
+keywords = '<>#Â£~|+-*/&%^_.,0?:$@'
 
 # Cmds
 class Cmd(object):
@@ -115,11 +115,18 @@ def parseStack(params):
     return res
 
 def parseSimpleOper(oper, params):
+    if not params:
+       raise ValueError("Stack name needed")
     (data, rest, idx) = getUntilCommand(params, 0)
     res = [Oper(oper, data)]
     if rest:
         res += parseCmds(rest)
     return res
+
+def parseBinaryOper(oper, params):
+    if not params:
+       raise ValueError("Binary operator and stack name needed")
+    return parseSimpleOper(oper + params[0], params[1:])
 
 def parseCmds(line):
     cmds = []
@@ -137,6 +144,8 @@ def parseCmds(line):
         cmds += parseStack(line[1:])
     elif cmd in '+-*/%^':
         cmds += parseSimpleOper(cmd, line[1:])
+    elif cmd == '0':
+        cmds += parseBinaryOper(cmd, line[1:])
     else:
         raise ValueError('Invalid command: %s' % line)
 
