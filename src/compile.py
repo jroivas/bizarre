@@ -133,6 +133,10 @@ class Oper(Cmd):
                 res *= i
             elif self.oper == '/':
                 res *= i
+            elif self.oper == '%':
+                res %= i
+            elif self.oper == '^':
+                res **= i
             else:
                 raise ValueError('Unknown operator: %s' % self.oper)
 
