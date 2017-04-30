@@ -1,16 +1,68 @@
 #!/usr/bin/python3
 
+import argparse
 import sys
+
 keywords = '<>#Â£~|+-*/&%^_.,0?:$@'
 
 # Cmds
+class Env(object):
+    def __init__(self):
+        self.default = 'default'
+        self.stacks = {}
+        self.stackTypes = {}
+
+        self.addStack('default', 'Unicode')
+        self.addStack('error', 'Unicode')
+        self.addStack('errorcode', 'Integer')
+
+    def getStack(self, name=None):
+        if name is None:
+            return self.stacks[self.default]
+        return self.stacks[name]
+
+    def addStack(self, name, stackType):
+        self.stacks[name] = []
+        self.stackTypes[name] = stackType
+
+    def verifyType(self, name, stackType):
+        return self.stackTypes.get(name, None) == stackType
+
+    def getType(self, name):
+        return self.stackTypes.get(name, None)
+
 class Cmd(object):
-    pass
+    def codeGen(self, env):
+        raise ValueError('codeGen unimplemented')
+
+    def interpret(self, env):
+        raise ValueError('interpret unimplemented')
 
 class PushCmd(Cmd):
     def __init__(self, data=None, stack=None):
         self.data = data
         self.stack = stack
+
+    def interpret(self, env):
+        if not self.stack:
+            self.stack = env.default
+
+        t = env.getType(self.stack)
+        if t == 'Integer' or t == 'Unsigned':
+            self.data = int(self.data)
+        elif t == 'Double':
+            self.data = float(self.data)
+        elif t == 'Byte':
+            self.data = ord(self.data)
+        elif t == 'Boolean':
+            if self.data.lower() == 'true':
+                self.data = True
+            else:
+                self.data = False
+        elif t == 'Unicode':
+            self.data = bytes(self.data, 'utf-8').decode('unicode_escape')
+
+        env.stacks[self.stack].append(self.data)
 
 class PopCmd(Cmd):
     def __init__(self, inputstack=None, outputstack=None, wholestack=False):
@@ -18,9 +70,30 @@ class PopCmd(Cmd):
         self.outputstack = outputstack
         self.wholestack = wholestack
 
+    def interpret(self, env):
+        if not self.inputstack:
+            self.inputstack = env.default
+        env.stacks[self.outpustack].append(env.stacks[self.inputstack].pop())
+
 class OutCmd(Cmd):
     def __init__(self, stack=None):
         self.stack = stack
+
+    def interpret(self, env):
+        if not self.stack:
+            self.stack = env.default
+
+        t = env.getType(self.stack)
+        separator = ''
+        if t == 'Integer' or t == 'Unsigned' or t == 'Double' or t == 'Boolean':
+            separator = ' '
+        elif t == 'Byte':
+            # FIXME
+            pass
+        data = separator.join(env.stacks[self.stack])
+        env.stacks[self.stack] = []
+        sys.stdout.write(data)
+        #print (data)
 
 class StackCmd(Cmd):
     def __init__(self, stack=None, stackType=None, create=False):
@@ -28,10 +101,19 @@ class StackCmd(Cmd):
         self.stackType = stackType
         self.create = create
 
+    def interpret(self, env):
+        if self.create:
+            env.addStack(self.stack, self.stackType)
+        else:
+            if not self.stack:
+                self.stack = env.default
+            env.stacks[self.stack]
+
 class Oper(Cmd):
     def __init__(self, oper, stack=None):
         self.oper = oper
         self.stack = stack
+
 
 
 # Parser
@@ -159,9 +241,23 @@ def parseLines(lines):
     return cmds
 
 if __name__ == '__main__':
-    if len(sys.argv) <= 1:
-        print('Usage: %s source' % sys.argv[0])
-        sys.exit(1)
+    parser = argparse.ArgumentParser(description='Bizarre compiler')
+    parser.add_argument('-d', '--dump', action='store_true', help='Dump intermediate')
+    parser.add_argument('-r', '--run', action='store_true', help='Interpret code')
+    parser.add_argument('source_file')
 
-    lines = readFile(sys.argv[1])
-    print(parseLines(lines))
+    args = parser.parse_args()
+
+    #if len(sys.argv) <= 1:
+    #    print('Usage: %s source' % sys.argv[0])
+    #    sys.exit(1)
+
+    #lines = readFile(sys.argv[1])
+    lines = readFile(args.source_file)
+    res = parseLines(lines)
+    if args.dump:
+        print(res)
+    if args.run:
+        env = Env()
+        for i in res:
+            i.interpret(env)

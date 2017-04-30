@@ -44,7 +44,7 @@ In the end we have different kind of stacks:
 
  - Unicode
  - Integer
- - Unsigned integer
+ - Unsigned (integer)
  - Double (floating point)
  - Byte
  - Boolean
