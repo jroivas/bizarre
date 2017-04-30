@@ -3,6 +3,7 @@
 import sys
 keywords = '<>#£~|+-*/&%^_.,?:$@'
 
+# Cmds
 class Cmd(object):
     pass
 
@@ -15,6 +16,13 @@ class OutCmd(Cmd):
     def __init__(self, stack=None):
         self.stack = stack
 
+class StackCmd(Cmd):
+    def __init__(self, stack=None, stackType=None, create=False):
+        self.stack = stack
+        self.stackType = stackType
+        self.create = create
+
+# Parser
 def readFile(fname):
     with open(fname, 'r') as fd:
         lines = [x.strip() for x in fd.readlines()]
@@ -30,7 +38,6 @@ def getUntilCommand(params, idx):
     return (data, rest, idx)
 
 def parsePush(params):
-    print('PP ' + params)
     if not params:
         raise ValueError('Push needs to have parameters')
 
@@ -63,6 +70,19 @@ def parseOut(params):
         res += parseCmds(rest)
     return res
 
+def parseStack(params):
+    if not params:
+        return [StackCmd()]
+    opos = params.find(':')
+    stackType = None
+    if opos > 0:
+        stackType = params[0:opos]
+        idx = opos + 1
+    (stack, rest, idx) = getUntilCommand(params, idx)
+    res = [StackCmd(stack=stack, stackType=stackType, create=(stackType and stack))]
+    res += parseCmds(rest)
+    return res
+
 def parseCmds(line):
     cmds = []
     if not line:
@@ -73,6 +93,10 @@ def parseCmds(line):
         cmds += parsePush(line[1:])
     elif cmd == '.':
         cmds += parseOut(line[1:])
+    elif cmd == '|':
+        cmds += parseStack(line[1:])
+    else:
+        raise ValueError('Invalid command: %s' % line)
 
     return cmds
 
