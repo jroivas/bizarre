@@ -102,7 +102,7 @@ We push four numbers to that stack.
 After it, we pop two numbers and push them to `num2` stack.
 We select `num2` as active stack, and print it's contents.
 
-Similar way, pop until newline:
+Similar way, pop everything from another stack:
 
     |Integer:nums
     >>nums

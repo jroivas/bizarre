@@ -43,6 +43,9 @@ class PushCmd(Cmd):
         self.data = data
         self.stack = stack
 
+    def __repr__(self):
+        return 'Push(%s <- %s)' % (self.stack, self.data)
+
     def interpret(self, env):
         if not self.stack:
             self.stack = env.default
@@ -69,6 +72,9 @@ class PopCmd(Cmd):
         self.inputstack = inputstack
         self.outputstack = outputstack
         self.wholestack = wholestack
+
+    def __repr__(self):
+        return 'Pop(%s -> %s)' % (self.inputstack, self.outputstack)
 
     def interpret(self, env):
         if not self.inputstack:
@@ -102,6 +108,9 @@ class StackCmd(Cmd):
         self.stack = stack
         self.stackType = stackType
         self.create = create
+
+    def __repr__(self):
+        return 'Stack(%s, %s)' % (self.stack, self.stackType)
 
     def interpret(self, env):
         if self.create:
@@ -174,7 +183,7 @@ def parsePush(params):
         idx = 0
         stack = None
         if opos > 0:
-            stack = params[1:opos]
+            stack = params[0:opos]
             idx = opos + 1
 
         (data, rest, idx) = getUntilCommand(params, idx)
@@ -189,12 +198,14 @@ def parsePop(params):
     wholestack = False
 
     opos = params.find(':')
-    if opos > 0:
-        inputstack = params[1:opos]
-        datapos = opos + 1
-
+    idx = 0
     if params[0] == '>':
         wholestack = True
+        idx += 1
+
+    if opos > 0:
+        inputstack = params[idx:opos]
+        datapos = opos + 1
 
     (outputstack, rest, idx) = getUntilCommand(params, 0)
     v = [PopCmd(inputstack=inputstack, outputstack=outputstack, wholestack=wholestack)]

@@ -1,0 +1,13 @@
+|Integer:num2
+|Integer:num1
+
+<10
+<num2:5
+
+<default:\n
+.
+.default
+
+<default:\n
+.num2
+.default
