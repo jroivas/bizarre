@@ -107,6 +107,10 @@ Similar way, pop everything from another stack:
     |Integer:nums
     >>nums
 
+If you want to discard pop, one can use special "null" stack:
+
+    >0
+
 ## Push to specific stack
 
 Simlar way push to specific stack is done by:
@@ -217,14 +221,14 @@ This should output only `10`. After this both num and num2 are empty.
 
 Stack without data is a sad stack.
 So we have way to check if stack has data.
-It's boolean operator `?`. It's result is stored to `result` stack.
+It's boolean operator `??`. It's result is stored to `result` stack.
 
     |Integer:num
     <33
-    ?
+    ??
     .result
     >
-    ?
+    ??
     .result
 
 This should output first `true` followed by `33` and `false`.
@@ -257,7 +261,7 @@ What's an programming language without conditionals?
 Boolean operator is basic question `?`, which evaluates stack with operand.
 Known operands:
 
- - No operator -> check queue for emptiness
+ - `?` check queue for emptiness
  - `<` second entry is smaller than top entry
  - `<=` second entry is smaller than top entry or equals
  - `>` second entry is bigger than top entry
@@ -444,7 +448,7 @@ Parameters defined as:
 | .        | s          | Write whole stack to stdout |
 | ,        |            | Input from stdin to stack |
 | ,        | s          | Input from stdin to stack |
-| ?        | s          | Checks if stack is empty |
+| ??       | s          | Checks if stack is empty |
 | ?<       | s          | top-1 < top |
 | ?<=      | s          | top-1 <= top |
 | ?>       | s          | top-1 > top |

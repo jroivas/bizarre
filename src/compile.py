@@ -9,10 +9,13 @@ keywords = '<>#Â£~|+-*/&%^_.,?:$@'
 class Env(object):
     def __init__(self):
         self.default = 'default'
+        self.result = 'result'
         self.stacks = {}
         self.stackTypes = {}
+        self.labels= {}
 
-        self.addStack('default', 'Unicode')
+        self.addStack(self.default, 'Unicode')
+        self.addStack(self.result, 'Boolean')
         self.addStack('error', 'Unicode')
         self.addStack('errorcode', 'Integer')
 
@@ -79,7 +82,10 @@ class PopCmd(Cmd):
     def interpret(self, env):
         if not self.inputstack:
             self.inputstack = env.default
-        env.stacks[self.outputstack].append(env.stacks[self.inputstack].pop())
+
+        data = env.stacks[self.inputstack].pop()
+        if self.outputstack != '0':
+            env.stacks[self.outputstack].append(data)
 
 class OutCmd(Cmd):
     def __init__(self, stack=None):
@@ -124,7 +130,7 @@ class StackCmd(Cmd):
         else:
             env.default = self.stack
 
-class Oper(Cmd):
+class OperCmd(Cmd):
     def __init__(self, oper, stack=None):
         self.oper = oper
         self.stack = stack
@@ -157,6 +163,54 @@ class Oper(Cmd):
 
         env.stacks[self.stack] = [res]
 
+class LabelCmd(Cmd):
+    def __init__(self, name):
+        self.name = name
+
+    def interpret(self, env):
+        env.labels[self.name] = self
+
+    def __repr__(self):
+        return 'Label(%s)' % (self.name)
+
+class CondCmd(Cmd):
+    def __init__(self, oper, stack=None):
+        self.oper = oper
+        self.stack = stack
+
+    def interpret(self, env):
+        if not self.stack:
+            self.stack = env.default
+
+        s = env.stacks[self.stack]
+        res = False
+
+        if self.oper == '?':
+            res = bool(s)
+        elif self.oper == '<':
+            res = s[-2] < s[-1]
+        elif self.oper == '<=':
+            res = s[-2] <= s[-1]
+        elif self.oper == '>':
+            res = s[-2] > s[-1]
+        elif self.oper == '>=':
+            res = s[-2] >= s[-1]
+        elif self.oper == '=':
+            res = s[-2] == s[-1]
+        elif self.oper == '!':
+            res = s[-2] != s[-1]
+        elif self.oper == '0':
+            res = s[-1] == 0
+        elif self.oper == '-':
+            res = s[-1] < 0
+        else:
+            raise ValueError('Invalid stack operator: %s' % self.oper)
+
+        env.stacks[env.result].append(res)
+
+    def __repr__(self):
+        return 'Cond(%s, %s)' % (self.oper, self.stack)
+
 # Parser
 def readFile(fname):
     with open(fname, 'r') as fd:
@@ -178,7 +232,7 @@ def parsePush(params):
 
     opos = params.find(':')
 
-    if params[0] == '<':
+    if params and params[0] == '<':
         stack = None
         datapos = 1
         if opos > 0:
@@ -205,7 +259,7 @@ def parsePop(params):
 
     opos = params.find(':')
     idx = 0
-    if params[0] == '>':
+    if params and params[0] == '>':
         wholestack = True
         idx += 1
 
@@ -214,6 +268,8 @@ def parsePop(params):
         datapos = opos + 1
 
     (outputstack, rest, idx) = getUntilCommand(params, 0)
+    if not outputstack:
+        raise ValueError('Output stack not defined while pop!')
     v = [PopCmd(inputstack=inputstack, outputstack=outputstack, wholestack=wholestack)]
     if rest:
         v += parseCmds(rest)
@@ -243,7 +299,7 @@ def parseSimpleOper(oper, params):
     if not params:
        raise ValueError("Stack name needed")
     (data, rest, idx) = getUntilCommand(params, 0)
-    res = [Oper(oper, data)]
+    res = [OperCmd(oper, data)]
     if rest:
         res += parseCmds(rest)
     return res
@@ -252,6 +308,23 @@ def parseBinaryOper(oper, params):
     if not params:
        raise ValueError("Binary operator and stack name needed")
     return parseSimpleOper(oper + params[0], params[1:])
+
+def parseLabel(params):
+    (data, rest, idx) = getUntilCommand(params, 0)
+    res = [LabelCmd(data)]
+    if rest:
+        res += parseCmds(rest)
+    return res
+
+def parseConditional(params):
+    if not params:
+        raise ValueError('Expected conditional type')
+    condType = params[0]
+    (stack, rest, idx) = getUntilCommand(params[1:], 0)
+    res = [CondCmd(condType, stack)]
+    if rest:
+        res += parseCmds(rest)
+    return res
 
 def parseCmds(line):
     cmds = []
@@ -271,6 +344,10 @@ def parseCmds(line):
         cmds += parseSimpleOper(cmd, line[1:])
     elif cmd == '0':
         cmds += parseBinaryOper(cmd, line[1:])
+    elif cmd == ':':
+        cmds += parseLabel(line[1:])
+    elif cmd == '?':
+        cmds += parseConditional(line[1:])
     else:
         raise ValueError('Invalid command: %s' % line)
 

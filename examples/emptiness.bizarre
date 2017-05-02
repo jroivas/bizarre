@@ -1,7 +1,11 @@
 |Integer:num
 <33
-?
+??
 .result
->
-?
+<default:\n
+.default
+>0
+??
 .result
+<default:\n
+.default
