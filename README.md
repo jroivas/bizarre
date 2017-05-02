@@ -249,6 +249,7 @@ Goto is simply dollar `$` and label name:
 Dollar operator checks `result` stack.
 If stack is empty, goto is always done, otherwise topmost result defines
 if goto is performed or not.
+As side efect topmost result is popped out from stack.
 
 ## Comments
 
@@ -280,9 +281,9 @@ Let's take example:
 
     |Integer:num2
     |Integer:num
-    :loop
     <5
     <1
+    :loop
     ?<
     # Id 5 < 1 goto done
     $done
@@ -292,13 +293,15 @@ Let's take example:
     # Add 1 to another stack
     <num2:1
     # Sum them up
-    +
-    # Push back to origin stack
-    <
+    +num2
+    # Move back to origin stack
+    >num2:num
     $loop
 
     :done
-    .num2
+    .num
+    <default:\n
+    .default
 
 ## Methods
 

@@ -12,7 +12,8 @@ class Env(object):
         self.result = 'result'
         self.stacks = {}
         self.stackTypes = {}
-        self.labels= {}
+        self.labels = {}
+        self.index = 0
 
         self.addStack(self.default, 'Unicode')
         self.addStack(self.result, 'Boolean')
@@ -33,6 +34,13 @@ class Env(object):
 
     def getType(self, name):
         return self.stackTypes.get(name, None)
+
+    def formIndex(self, cmds):
+        for i, cmd in enumerate(cmds):
+            #print (cmd, isinstance(cmd, LabelCmd))
+            if isinstance(cmd, LabelCmd):
+                self.labels[cmd.name] = i
+        #print ('LBL %s' % self.labels)
 
 class Cmd(object):
     def codeGen(self, env):
@@ -168,10 +176,30 @@ class LabelCmd(Cmd):
         self.name = name
 
     def interpret(self, env):
-        env.labels[self.name] = self
+        pass
+        #env.labels[self.name] = self
 
     def __repr__(self):
         return 'Label(%s)' % (self.name)
+
+class GotoCmd(Cmd):
+    def __init__(self, name):
+        self.name = name
+
+    def interpret(self, env):
+        goto = False
+        if env.stacks[env.result]:
+            goto = env.stacks[env.result].pop()
+        else:
+            goto = True
+
+        if goto:
+            env.index = env.labels.get(self.name, None)
+            if env.index is None:
+                raise ValueError('Goto target not found')
+
+    def __repr__(self):
+        return 'Goto(%s)' % (self.name)
 
 class CondCmd(Cmd):
     def __init__(self, oper, stack=None):
@@ -227,8 +255,8 @@ def getUntilCommand(params, idx):
     return (data, rest, idx)
 
 def parsePush(params):
-    if not params:
-        raise ValueError('Push needs to have parameters')
+    #if not params:
+    #    raise ValueError('Push needs to have parameters')
 
     opos = params.find(':')
 
@@ -263,13 +291,16 @@ def parsePop(params):
         wholestack = True
         idx += 1
 
+    datapos = 0
     if opos > 0:
         inputstack = params[idx:opos]
         datapos = opos + 1
+        idx = 0
 
-    (outputstack, rest, idx) = getUntilCommand(params, 0)
+    (outputstack, rest, idx) = getUntilCommand(params[datapos:], idx)
     if not outputstack:
         raise ValueError('Output stack not defined while pop!')
+
     v = [PopCmd(inputstack=inputstack, outputstack=outputstack, wholestack=wholestack)]
     if rest:
         v += parseCmds(rest)
@@ -296,8 +327,8 @@ def parseStack(params):
     return res
 
 def parseSimpleOper(oper, params):
-    if not params:
-       raise ValueError("Stack name needed")
+    #if not params:
+    ##   raise ValueError("Stack name needed")
     (data, rest, idx) = getUntilCommand(params, 0)
     res = [OperCmd(oper, data)]
     if rest:
@@ -312,6 +343,13 @@ def parseBinaryOper(oper, params):
 def parseLabel(params):
     (data, rest, idx) = getUntilCommand(params, 0)
     res = [LabelCmd(data)]
+    if rest:
+        res += parseCmds(rest)
+    return res
+
+def parseGoto(params):
+    (data, rest, idx) = getUntilCommand(params, 0)
+    res = [GotoCmd(data)]
     if rest:
         res += parseCmds(rest)
     return res
@@ -332,7 +370,10 @@ def parseCmds(line):
         return cmds
 
     cmd = line[0]
-    if cmd == '<':
+    if cmd == '#':
+        # Comment so pass until EOL
+        pass
+    elif cmd == '<':
         cmds += parsePush(line[1:])
     elif cmd == '>':
         cmds += parsePop(line[1:])
@@ -346,6 +387,8 @@ def parseCmds(line):
         cmds += parseBinaryOper(cmd, line[1:])
     elif cmd == ':':
         cmds += parseLabel(line[1:])
+    elif cmd == '$':
+        cmds += parseGoto(line[1:])
     elif cmd == '?':
         cmds += parseConditional(line[1:])
     else:
@@ -379,5 +422,10 @@ if __name__ == '__main__':
         print(res)
     if args.run:
         env = Env()
-        for i in res:
-            i.interpret(env)
+        env.formIndex(res)
+        size = len(res)
+        while env.index < size:
+            #print (res[env.index])
+            res[env.index].interpret(env)
+            env.index += 1
+            #print (env.stacks)
