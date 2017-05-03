@@ -1,7 +1,9 @@
-code:res
-|Integer:num
+|Unicode:res
+|Integer:num1
 |Integer:num2
 <num1:42
 <12
 £num1:res
 .res
+<default:\n
+.default

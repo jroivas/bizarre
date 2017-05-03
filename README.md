@@ -383,6 +383,8 @@ and second is destination stack. Thus this example outputs `42` even active stac
     £num1:res
     .res
 
+Casting does not affect on source stack, only destination stack.
+
 ## Stack size
 
 Sometime you just need to know the size of the stack.

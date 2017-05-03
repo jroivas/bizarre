@@ -95,6 +95,44 @@ class PopCmd(Cmd):
         if self.outputstack != '0':
             env.stacks[self.outputstack].append(data)
 
+class CastCmd(Cmd):
+    def __init__(self, inputstack=None, outputstack=None, wholestack=False):
+        self.inputstack = inputstack
+        self.outputstack = outputstack
+        self.wholestack = wholestack
+
+    def __repr__(self):
+        return 'Cast(%s -> %s)' % (self.inputstack, self.outputstack)
+
+    def interpret(self, env):
+        if not self.inputstack:
+            self.inputstack = env.default
+
+        src_type = env.getType(self.inputstack)
+        dst_type = env.getType(self.outputstack)
+
+        data = env.stacks[self.inputstack][-1]
+        if dst_type == 'Integer' or dst_type == 'Unsigned':
+            data = int(data)
+        elif dst_type == 'Double':
+            data = float(data)
+        elif dst_type == 'Byte':
+            data = ord(data)
+        elif dst_type == 'Boolean':
+            data = bool(data)
+        elif dst_type == 'Unicode':
+            if (src_type == 'Integer' or
+                src_type == 'Unsigned' or
+                src_type == 'Boolean' or
+                src_type == 'Double'):
+                data = '%s' % data
+            elif src_type == 'Byte':
+                data = chr(data)
+            else:
+                data = bytes(data, 'utf-8').decode('unicode_escape')
+
+        env.stacks[self.outputstack].append(data)
+
 class OutCmd(Cmd):
     def __init__(self, stack=None):
         self.stack = stack
@@ -306,6 +344,28 @@ def parsePop(params):
         v += parseCmds(rest)
     return v
 
+def parseCast(params):
+    inputstack = None
+    outputstack = None
+    wholestack = False
+
+    opos = params.find(':')
+    idx = 0
+    datapos = 0
+    if opos > 0:
+        inputstack = params[idx:opos]
+        datapos = opos + 1
+        idx = 0
+
+    (outputstack, rest, idx) = getUntilCommand(params[datapos:], idx)
+    if not outputstack:
+        raise ValueError('Output stack not defined while pop!')
+
+    v = [CastCmd(inputstack=inputstack, outputstack=outputstack)]
+    if rest:
+        v += parseCmds(rest)
+    return v
+
 def parseOut(params):
     (data, rest, idx) = getUntilCommand(params, 0)
     res = [OutCmd(data)]
@@ -377,6 +437,8 @@ def parseCmds(line):
         cmds += parsePush(line[1:])
     elif cmd == '>':
         cmds += parsePop(line[1:])
+    elif cmd == '£':
+        cmds += parseCast(line[1:])
     elif cmd == '.':
         cmds += parseOut(line[1:])
     elif cmd == '|':
