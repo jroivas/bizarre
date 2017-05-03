@@ -3,8 +3,6 @@
 import argparse
 import sys
 
-keywords = '<>#Â£~|+-*/&%^_.,?:$@'
-
 # Cmds
 class Env(object):
     def __init__(self):
@@ -13,7 +11,11 @@ class Env(object):
         self.stacks = {}
         self.stackTypes = {}
         self.labels = {}
+        self.methods = {}
         self.index = 0
+        self.stop = False
+        self.params = []
+        self.retVal = None
 
         self.addStack(self.default, 'Unicode')
         self.addStack(self.result, 'Boolean')
@@ -25,8 +27,11 @@ class Env(object):
             return self.stacks[self.default]
         return self.stacks[name]
 
-    def addStack(self, name, stackType):
-        self.stacks[name] = []
+    def addStack(self, name, stackType, init=None):
+        if init is not None:
+            self.stacks[name] = init[:]
+        else:
+            self.stacks[name] = []
         self.stackTypes[name] = stackType
 
     def verifyType(self, name, stackType):
@@ -37,10 +42,24 @@ class Env(object):
 
     def formIndex(self, cmds):
         for i, cmd in enumerate(cmds):
-            #print (cmd, isinstance(cmd, LabelCmd))
             if isinstance(cmd, LabelCmd):
                 self.labels[cmd.name] = i
-        #print ('LBL %s' % self.labels)
+
+    def formMethods(self, cmds):
+        for i, cmd in enumerate(cmds):
+            if isinstance(cmd, MethodCmd):
+                self.methods[cmd.name] = cmd
+
+    def addParam(self, stack, stackType):
+        self.params.append((stack, stackType))
+
+    def execute(self, cmds):
+        size = len(cmds)
+        while not self.stop and self.index < size:
+            #print (cmds[self.index])
+            cmds[self.index].interpret(self)
+            self.index += 1
+            #print (env.stacks)
 
 class Cmd(object):
     def codeGen(self, env):
@@ -147,7 +166,6 @@ class StackSizeCmd(Cmd):
         data = len(env.stacks[self.inputstack])
         env.stacks[self.outputstack].append(data)
 
-
 class OutCmd(Cmd):
     def __init__(self, stack=None):
         self.stack = stack
@@ -248,8 +266,10 @@ class LabelCmd(Cmd):
         return 'Label(%s)' % (self.name)
 
 class GotoCmd(Cmd):
-    def __init__(self, name):
+    def __init__(self, name, params=None, ret=None):
         self.name = name
+        self.params = params
+        self.ret = ret
 
     def interpret(self, env):
         goto = False
@@ -259,12 +279,25 @@ class GotoCmd(Cmd):
             goto = True
 
         if goto:
-            env.index = env.labels.get(self.name, None)
-            if env.index is None:
-                raise ValueError('Goto target not found')
+            index = env.labels.get(self.name, None)
+            if index is None:
+                method = env.methods.get(self.name, None)
+                if method is None:
+                    raise ValueError('Goto target or method not found: %s' % self.name)
+
+                new_env = Env()
+                new_env.formIndex(method.code)
+                for p in self.params:
+                    new_env.addParam(env.stacks[p], env.stackTypes[p])
+                new_env.execute(method.code)
+                #print (self.ret, new_env.retVal)
+                if self.ret and new_env.retVal:
+                    env.stacks[self.ret] += new_env.retVal
+            else:
+                env.index = index
 
     def __repr__(self):
-        return 'Goto(%s)' % (self.name)
+        return 'Goto(%s, %s -> %s)' % (self.name, self.params, self.ret)
 
 class CondCmd(Cmd):
     def __init__(self, oper, stack=None):
@@ -304,228 +337,309 @@ class CondCmd(Cmd):
     def __repr__(self):
         return 'Cond(%s, %s)' % (self.oper, self.stack)
 
+class MethodCmd(Cmd):
+    def __init__(self, name, stacks=None):
+        self.name = name
+        self.stacks = stacks
+        self.code = []
+
+    def append(self, data):
+        self.code += data
+
+    def __repr__(self):
+        return 'Method(%s, %s)' % (self.name, self.stacks)
+
+    def interpret(self, env):
+        for i, stack in enumerate(self.stacks):
+            p = env.params[i]
+            if p is None:
+                raise ValueError('Not enough params for method: %s, %s' % (self.name, stack))
+            env.addStack(stack, p[1], p[0])
+
+class ReturnCmd(Cmd):
+    def __init__(self, stack=None):
+        self.stack = stack
+
+    def __repr__(self):
+        return 'Return(%s)' % (self.stack)
+
+    def interpret(self, env):
+        self.stop = True
+        env.retVal = env.stacks[self.stack]
+
 # Parser
-def readFile(fname):
-    with open(fname, 'r') as fd:
-        lines = [x.strip() for x in fd.readlines()]
-        return lines
+class BizarreParser(object):
+    keywords = '<>#Â£~|+-*/&%^_.,?:$@'
 
-def getUntilCommand(params, idx):
-    data = ''
-    ll = len(params)
-    while idx < ll and params[idx] not in keywords:
-        data += params[idx]
-        idx += 1
-    rest = params[idx:]
-    return (data, rest, idx)
+    def __init__(self):
+        self.method = None
+        self.methods = []
 
-def parsePush(params):
-    #if not params:
-    #    raise ValueError('Push needs to have parameters')
+    def readFile(self, fname):
+        with open(fname, 'r') as fd:
+            lines = [x.strip() for x in fd.readlines()]
+            return lines
 
-    opos = params.find(':')
+    def getUntilCommand(self, params, idx):
+        data = ''
+        ll = len(params)
+        while idx < ll and params[idx] not in self.keywords:
+            data += params[idx]
+            idx += 1
+        rest = params[idx:]
+        return (data, rest, idx)
 
-    if params and params[0] == '<':
-        stack = None
-        datapos = 1
-        if opos > 0:
-            stack = params[1:opos]
-            datapos = opos + 1
-        return [PushCmd(data=params[datapos:], stack=stack)]
-    else:
+    def parsePush(self, params):
+        #if not params:
+        #    raise ValueError('Push needs to have parameters')
+
+        opos = params.find(':')
+
+        if params and params[0] == '<':
+            stack = None
+            datapos = 1
+            if opos > 0:
+                stack = params[1:opos]
+                datapos = opos + 1
+            return [PushCmd(data=params[datapos:], stack=stack)]
+        else:
+            idx = 0
+            stack = None
+            if opos > 0:
+                stack = params[0:opos]
+                idx = opos + 1
+
+            (data, rest, idx) = self.getUntilCommand(params, idx)
+            v = [PushCmd(data=data, stack=stack)]
+            if rest:
+                v += self.parseCmds(rest)
+            return v
+
+    def parsePop(self, params):
+        inputstack = None
+        outputstack = None
+        wholestack = False
+
+        opos = params.find(':')
         idx = 0
-        stack = None
-        if opos > 0:
-            stack = params[0:opos]
-            idx = opos + 1
+        if params and params[0] == '>':
+            wholestack = True
+            idx += 1
 
-        (data, rest, idx) = getUntilCommand(params, idx)
-        v = [PushCmd(data=data, stack=stack)]
+        datapos = 0
+        if opos > 0:
+            inputstack = params[idx:opos]
+            datapos = opos + 1
+            idx = 0
+
+        (outputstack, rest, idx) = self.getUntilCommand(params[datapos:], idx)
+        if not outputstack:
+            raise ValueError('Output stack not defined while pop!')
+
+        v = [PopCmd(inputstack=inputstack, outputstack=outputstack, wholestack=wholestack)]
         if rest:
-            v += parseCmds(rest)
+            v += self.parseCmds(rest)
         return v
 
-def parsePop(params):
-    inputstack = None
-    outputstack = None
-    wholestack = False
+    def parseMethod(self, params):
+        if not params:
+            raise ValueError('Invalid method def: %s' % params)
+        v = []
+        rest = []
+        if params[0] == '@':
+            # Return
+            (stack, rest, idx) = self.getUntilCommand(params, 1)
+            #v.append(ReturnCmd(stack))
+            self.method.append([ReturnCmd(stack)])
+            #v.append(self.method.code[0])
+            #self.method.code = self.method.code[1:]
+            self.method = None
+        else:
+            data = params.split(':')
+            meth = MethodCmd(data[0], data[1:])
+            self.methods.append(meth)
+            self.method = meth
+            v.append(meth)
 
-    opos = params.find(':')
-    idx = 0
-    if params and params[0] == '>':
-        wholestack = True
-        idx += 1
+        if rest:
+            v += self.parseCmds(rest)
+        return v
 
-    datapos = 0
-    if opos > 0:
-        inputstack = params[idx:opos]
-        datapos = opos + 1
+    def parseCast(self, params):
+        inputstack = None
+        outputstack = None
+        wholestack = False
+
+        opos = params.find(':')
         idx = 0
+        datapos = 0
+        if opos > 0:
+            inputstack = params[idx:opos]
+            datapos = opos + 1
+            idx = 0
 
-    (outputstack, rest, idx) = getUntilCommand(params[datapos:], idx)
-    if not outputstack:
-        raise ValueError('Output stack not defined while pop!')
+        (outputstack, rest, idx) = self.getUntilCommand(params[datapos:], idx)
+        if not outputstack:
+            raise ValueError('Output stack not defined while casting!')
 
-    v = [PopCmd(inputstack=inputstack, outputstack=outputstack, wholestack=wholestack)]
-    if rest:
-        v += parseCmds(rest)
-    return v
+        v = [CastCmd(inputstack=inputstack, outputstack=outputstack)]
+        if rest:
+            v += self.parseCmds(rest)
+        return v
 
-def parseCast(params):
-    inputstack = None
-    outputstack = None
-    wholestack = False
+    def parseStackSize(self, params):
+        inputstack = None
+        outputstack = None
+        wholestack = False
 
-    opos = params.find(':')
-    idx = 0
-    datapos = 0
-    if opos > 0:
-        inputstack = params[idx:opos]
-        datapos = opos + 1
+        opos = params.find(':')
         idx = 0
+        datapos = 0
+        if opos > 0:
+            inputstack = params[idx:opos]
+            datapos = opos + 1
+            idx = 0
 
-    (outputstack, rest, idx) = getUntilCommand(params[datapos:], idx)
-    if not outputstack:
-        raise ValueError('Output stack not defined while casting!')
+        (outputstack, rest, idx) = self.getUntilCommand(params[datapos:], idx)
+        if not outputstack:
+            raise ValueError('Output stack not defined while stacksize!')
 
-    v = [CastCmd(inputstack=inputstack, outputstack=outputstack)]
-    if rest:
-        v += parseCmds(rest)
-    return v
+        v = [StackSizeCmd(inputstack=inputstack, outputstack=outputstack)]
+        if rest:
+            v += self.parseCmds(rest)
+        return v
 
-def parseStackSize(params):
-    inputstack = None
-    outputstack = None
-    wholestack = False
 
-    opos = params.find(':')
-    idx = 0
-    datapos = 0
-    if opos > 0:
-        inputstack = params[idx:opos]
-        datapos = opos + 1
+    def parseDup(self, params):
+        (data, rest, idx) = self.getUntilCommand(params, 0)
+        res = [DupCmd(data)]
+        if rest:
+            res += self.parseCmds(rest)
+        return res
+
+    def parseOut(self, params):
+        (data, rest, idx) = self.getUntilCommand(params, 0)
+        res = [OutCmd(data)]
+        if rest:
+            res += self.parseCmds(rest)
+        return res
+
+    def parseStack(self, params):
+        if not params:
+            return [StackCmd()]
+        opos = params.find(':')
+        stackType = None
         idx = 0
+        if opos > 0:
+            stackType = params[0:opos]
+            idx = opos + 1
+        (stack, rest, idx) = self.getUntilCommand(params, idx)
+        res = [StackCmd(stack=stack, stackType=stackType, create=(stackType and stack))]
+        res += self.parseCmds(rest)
+        return res
 
-    (outputstack, rest, idx) = getUntilCommand(params[datapos:], idx)
-    if not outputstack:
-        raise ValueError('Output stack not defined while stacksize!')
+    def parseSimpleOper(self, oper, params):
+        #if not params:
+        ##   raise ValueError("Stack name needed")
+        (data, rest, idx) = self.getUntilCommand(params, 0)
+        res = [OperCmd(oper, data)]
+        if rest:
+            res += self.parseCmds(rest)
+        return res
 
-    v = [StackSizeCmd(inputstack=inputstack, outputstack=outputstack)]
-    if rest:
-        v += parseCmds(rest)
-    return v
+    def parseBinaryOper(self, oper, params):
+        if not params:
+           raise ValueError("Binary operator and stack name needed")
+        return parseSimpleOper(oper + params[0], params[1:])
 
+    def parseLabel(self, params):
+        (data, rest, idx) = self.getUntilCommand(params, 0)
+        res = [LabelCmd(data)]
+        if rest:
+            res += self.parseCmds(rest)
+        return res
 
-def parseDup(params):
-    (data, rest, idx) = getUntilCommand(params, 0)
-    res = [DupCmd(data)]
-    if rest:
-        res += parseCmds(rest)
-    return res
+    def parseGoto(self, params):
+        opos = params.find('>')
+        retStack = None
+        if opos > 0:
+            names = params[:opos].split(':')
+            retStack = params[opos + 1:]
+        else:
+            names = params.split(':')
 
-def parseOut(params):
-    (data, rest, idx) = getUntilCommand(params, 0)
-    res = [OutCmd(data)]
-    if rest:
-        res += parseCmds(rest)
-    return res
+        if not names:
+            raise ValueError('Goto target not found: %s' % params)
 
-def parseStack(params):
-    if not params:
-        return [StackCmd()]
-    opos = params.find(':')
-    stackType = None
-    idx = 0
-    if opos > 0:
-        stackType = params[0:opos]
-        idx = opos + 1
-    (stack, rest, idx) = getUntilCommand(params, idx)
-    res = [StackCmd(stack=stack, stackType=stackType, create=(stackType and stack))]
-    res += parseCmds(rest)
-    return res
+        call = names[0]
+        params = names[1:]
 
-def parseSimpleOper(oper, params):
-    #if not params:
-    ##   raise ValueError("Stack name needed")
-    (data, rest, idx) = getUntilCommand(params, 0)
-    res = [OperCmd(oper, data)]
-    if rest:
-        res += parseCmds(rest)
-    return res
+        #(data, rest, idx) = self.getUntilCommand(params, opos + 1)
+        res = [GotoCmd(call, params, retStack)]
+        #if rest:
+        #    res += self.parseCmds(rest)
+        return res
 
-def parseBinaryOper(oper, params):
-    if not params:
-       raise ValueError("Binary operator and stack name needed")
-    return parseSimpleOper(oper + params[0], params[1:])
+    def parseConditional(self, params):
+        if not params:
+            raise ValueError('Expected conditional type')
+        condType = params[0]
+        (stack, rest, idx) = self.getUntilCommand(params[1:], 0)
+        res = [CondCmd(condType, stack)]
+        if rest:
+            res += self.parseCmds(rest)
+        return res
 
-def parseLabel(params):
-    (data, rest, idx) = getUntilCommand(params, 0)
-    res = [LabelCmd(data)]
-    if rest:
-        res += parseCmds(rest)
-    return res
+    def parseCmds(self, line):
+        cmds = []
+        if not line:
+            return cmds
 
-def parseGoto(params):
-    (data, rest, idx) = getUntilCommand(params, 0)
-    res = [GotoCmd(data)]
-    if rest:
-        res += parseCmds(rest)
-    return res
+        cmd = line[0]
+        if cmd == '#':
+            # Comment so pass until EOL
+            pass
+        elif cmd == '<':
+            cmds += self.parsePush(line[1:])
+        elif cmd == '>':
+            cmds += self.parsePop(line[1:])
+        elif cmd == '£':
+            cmds += self.parseCast(line[1:])
+        elif cmd == '.':
+            cmds += self.parseOut(line[1:])
+        elif cmd == '_':
+            cmds += self.parseDup(line[1:])
+        elif cmd == '|':
+            cmds += self.parseStack(line[1:])
+        elif cmd in '+-*/%^':
+            cmds += self.parseSimpleOper(cmd, line[1:])
+        elif cmd == '0':
+            cmds += self.parseBinaryOper(cmd, line[1:])
+        elif cmd == ':':
+            cmds += self.parseLabel(line[1:])
+        elif cmd == '$':
+            cmds += self.parseGoto(line[1:])
+        elif cmd == '?':
+            cmds += self.parseConditional(line[1:])
+        elif cmd == '~':
+            cmds += self.parseStackSize(line[1:])
+        elif cmd == '@':
+            cmds += self.parseMethod(line[1:])
+        else:
+            raise ValueError('Invalid command: %s' % line)
 
-def parseConditional(params):
-    if not params:
-        raise ValueError('Expected conditional type')
-    condType = params[0]
-    (stack, rest, idx) = getUntilCommand(params[1:], 0)
-    res = [CondCmd(condType, stack)]
-    if rest:
-        res += parseCmds(rest)
-    return res
-
-def parseCmds(line):
-    cmds = []
-    if not line:
         return cmds
 
-    cmd = line[0]
-    if cmd == '#':
-        # Comment so pass until EOL
-        pass
-    elif cmd == '<':
-        cmds += parsePush(line[1:])
-    elif cmd == '>':
-        cmds += parsePop(line[1:])
-    elif cmd == '£':
-        cmds += parseCast(line[1:])
-    elif cmd == '.':
-        cmds += parseOut(line[1:])
-    elif cmd == '_':
-        cmds += parseDup(line[1:])
-    elif cmd == '|':
-        cmds += parseStack(line[1:])
-    elif cmd in '+-*/%^':
-        cmds += parseSimpleOper(cmd, line[1:])
-    elif cmd == '0':
-        cmds += parseBinaryOper(cmd, line[1:])
-    elif cmd == ':':
-        cmds += parseLabel(line[1:])
-    elif cmd == '$':
-        cmds += parseGoto(line[1:])
-    elif cmd == '?':
-        cmds += parseConditional(line[1:])
-    elif cmd == '~':
-        cmds += parseStackSize(line[1:])
-    else:
-        raise ValueError('Invalid command: %s' % line)
+    def parseLines(self, lines):
+        cmds = []
+        for l in lines:
+            tmp = self.parseCmds(l)
+            if self.method is not None:
+                self.method.append(tmp)
+            else:
+                cmds += tmp
 
-    return cmds
-
-def parseLines(lines):
-    cmds = []
-    for l in lines:
-        cmds += parseCmds(l)
-
-    return cmds
+        return cmds
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Bizarre compiler')
@@ -539,17 +653,13 @@ if __name__ == '__main__':
     #    print('Usage: %s source' % sys.argv[0])
     #    sys.exit(1)
 
-    #lines = readFile(sys.argv[1])
-    lines = readFile(args.source_file)
-    res = parseLines(lines)
+    p = BizarreParser()
+    lines = p.readFile(args.source_file)
+    res = p.parseLines(lines)
     if args.dump:
         print(res)
     if args.run:
         env = Env()
         env.formIndex(res)
-        size = len(res)
-        while env.index < size:
-            #print (res[env.index])
-            res[env.index].interpret(env)
-            env.index += 1
-            #print (env.stacks)
+        env.formMethods(p.methods)
+        env.execute(res)
