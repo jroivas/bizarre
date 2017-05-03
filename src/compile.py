@@ -156,7 +156,19 @@ class OutCmd(Cmd):
             data = separator.join(env.stacks[self.stack])
         env.stacks[self.stack] = []
         sys.stdout.write(data)
-        #print (data)
+
+class DupCmd(Cmd):
+    def __init__(self, stack=None):
+        self.stack = stack
+
+    def __repr__(self):
+        return 'Dup(%s)' % (self.stack)
+
+    def interpret(self, env):
+        if not self.stack:
+            self.stack = env.default
+
+        env.stacks[self.stack].append(env.stacks[self.stack][-1])
 
 class StackCmd(Cmd):
     def __init__(self, stack=None, stackType=None, create=False):
@@ -366,6 +378,13 @@ def parseCast(params):
         v += parseCmds(rest)
     return v
 
+def parseDup(params):
+    (data, rest, idx) = getUntilCommand(params, 0)
+    res = [DupCmd(data)]
+    if rest:
+        res += parseCmds(rest)
+    return res
+
 def parseOut(params):
     (data, rest, idx) = getUntilCommand(params, 0)
     res = [OutCmd(data)]
@@ -441,6 +460,8 @@ def parseCmds(line):
         cmds += parseCast(line[1:])
     elif cmd == '.':
         cmds += parseOut(line[1:])
+    elif cmd == '_':
+        cmds += parseDup(line[1:])
     elif cmd == '|':
         cmds += parseStack(line[1:])
     elif cmd in '+-*/%^':
