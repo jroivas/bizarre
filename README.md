@@ -331,15 +331,18 @@ Methods need to end at double def `@@`, following by optional return stack
     $sumPlusOne:num>res
     <res
 
-Syntax is: `@` followed by method name, then optional parameters separated by colons.
+Syntax is: `@` followed by method name, then optional parameter stacks separated by colons.
 Return is just `@@`.
+
+When entering to method, first parameter stack (if exists) is selected as active instead of `default`.
 
 Call syntax is same as goto `$`, and parameter stacks are defined with colons.
 Return stack from call is defined after `>`.
 
     @sumStacks:stack1:stack2
     |stack1
-    <<stack2
+    +stack2
+    >stack2:stack1
     +stack1
     @@stack1
 

@@ -350,7 +350,10 @@ class MethodCmd(Cmd):
         return 'Method(%s, %s)' % (self.name, self.stacks)
 
     def interpret(self, env):
+        default = False
         for i, stack in enumerate(self.stacks):
+            if not default:
+                env.default = stack
             p = env.params[i]
             if p is None:
                 raise ValueError('Not enough params for method: %s, %s' % (self.name, stack))

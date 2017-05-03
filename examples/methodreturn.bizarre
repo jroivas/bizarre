@@ -1,15 +1,21 @@
 @sumStacks:stack1:stack2
 |stack1
-<<stack2
++stack2
+>stack2:stack1
 +stack1
 @@stack1
 
 |Integer:num
 <11
 <5
+
 |Integer:num2
 <4
 <2
+
 |Integer:res
 $sumStacks:num2:num>res
-<res
+.res
+
+<default:\n
+.default
