@@ -4,3 +4,11 @@
 <5<10<9<2<6<1
 ~stacksize
 ~stacksize:stacksize2
+
+.stacksize
+<default:\n
+.default
+
+.stacksize2
+<default:\n
+.default

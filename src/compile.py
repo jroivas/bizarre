@@ -96,10 +96,9 @@ class PopCmd(Cmd):
             env.stacks[self.outputstack].append(data)
 
 class CastCmd(Cmd):
-    def __init__(self, inputstack=None, outputstack=None, wholestack=False):
+    def __init__(self, inputstack=None, outputstack=None):
         self.inputstack = inputstack
         self.outputstack = outputstack
-        self.wholestack = wholestack
 
     def __repr__(self):
         return 'Cast(%s -> %s)' % (self.inputstack, self.outputstack)
@@ -132,6 +131,22 @@ class CastCmd(Cmd):
                 data = bytes(data, 'utf-8').decode('unicode_escape')
 
         env.stacks[self.outputstack].append(data)
+
+class StackSizeCmd(Cmd):
+    def __init__(self, inputstack=None, outputstack=None):
+        self.inputstack = inputstack
+        self.outputstack = outputstack
+
+    def __repr__(self):
+        return 'StackSize(%s -> %s)' % (self.inputstack, self.outputstack)
+
+    def interpret(self, env):
+        if not self.inputstack:
+            self.inputstack = env.default
+
+        data = len(env.stacks[self.inputstack])
+        env.stacks[self.outputstack].append(data)
+
 
 class OutCmd(Cmd):
     def __init__(self, stack=None):
@@ -371,12 +386,35 @@ def parseCast(params):
 
     (outputstack, rest, idx) = getUntilCommand(params[datapos:], idx)
     if not outputstack:
-        raise ValueError('Output stack not defined while pop!')
+        raise ValueError('Output stack not defined while casting!')
 
     v = [CastCmd(inputstack=inputstack, outputstack=outputstack)]
     if rest:
         v += parseCmds(rest)
     return v
+
+def parseStackSize(params):
+    inputstack = None
+    outputstack = None
+    wholestack = False
+
+    opos = params.find(':')
+    idx = 0
+    datapos = 0
+    if opos > 0:
+        inputstack = params[idx:opos]
+        datapos = opos + 1
+        idx = 0
+
+    (outputstack, rest, idx) = getUntilCommand(params[datapos:], idx)
+    if not outputstack:
+        raise ValueError('Output stack not defined while stacksize!')
+
+    v = [StackSizeCmd(inputstack=inputstack, outputstack=outputstack)]
+    if rest:
+        v += parseCmds(rest)
+    return v
+
 
 def parseDup(params):
     (data, rest, idx) = getUntilCommand(params, 0)
@@ -397,6 +435,7 @@ def parseStack(params):
         return [StackCmd()]
     opos = params.find(':')
     stackType = None
+    idx = 0
     if opos > 0:
         stackType = params[0:opos]
         idx = opos + 1
@@ -474,6 +513,8 @@ def parseCmds(line):
         cmds += parseGoto(line[1:])
     elif cmd == '?':
         cmds += parseConditional(line[1:])
+    elif cmd == '~':
+        cmds += parseStackSize(line[1:])
     else:
         raise ValueError('Invalid command: %s' % line)
 
